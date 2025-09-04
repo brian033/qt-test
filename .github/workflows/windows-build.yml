@@ -1,30 +1,53 @@
-name: Build Windows Executable
+name: Build Windows .exe (Qt6)
 
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  build-windows:
+  win-msvc:
     runs-on: windows-latest
+
+    env:
+      QT_VERSION: 6.9.2
+      QT_ARCH: win64_msvc2019_64 # x64；若要 32 位改成 win32_msvc2019
+      QT_DIR: C:\Qt
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up MinGW
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
-      - name: Install CMake
-        uses: jwlawson/actions-setup-cmake@v2
-      - name: Configure CMake
-        run: cmake -B build -G "MinGW Makefiles" .
-      - name: Build
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install prerequisites (aqt, cmake, ninja)
+        run: |
+          pip install aqtinstall
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --no-progress
+          choco install ninja --no-progress
+
+      - name: Install Qt
+        run: |
+          python -m aqt install-qt windows desktop %QT_VERSION% %QT_ARCH% --outputdir %QT_DIR%
+
+      - name: Configure (CMake + Ninja)
+        env:
+          CMAKE_PREFIX_PATH: ${{ env.QT_DIR }}\${{ env.QT_VERSION }}\msvc2019_64
+        run: |
+          cmake -S . -B build -G "Ninja" -DCMAKE_PREFIX_PATH="%CMAKE_PREFIX_PATH%"
+          # 若你改成 32 位，CMAKE_PREFIX_PATH 換成 %QT_DIR%\%QT_VERSION%\msvc2019
+
+      - name: Build (Release)
         run: cmake --build build --config Release
-      - name: Upload Artifacts
+
+      - name: Deploy Qt runtime (windeployqt)
+        shell: pwsh
+        run: |
+          $qtbin = "${{ env.QT_DIR }}\${{ env.QT_VERSION }}\msvc2019_64\bin"
+          $exe   = "build\helloqt.exe"   # 如果你的產物出在 build\Release\helloqt.exe 就改那個路徑
+          & "$qtbin\windeployqt.exe" --release --compiler-runtime "$exe"
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build
+          name: HelloQt-Windows-x64
           path: |
-            build/**/*.exe
-            build/**/*.dll
+            build/**/*
