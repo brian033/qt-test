@@ -1,0 +1,30 @@
+name: Build Windows Executable
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up MinGW
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
+      - name: Install CMake
+        uses: jwlawson/actions-setup-cmake@v2
+      - name: Configure CMake
+        run: cmake -B build -G "MinGW Makefiles" .
+      - name: Build
+        run: cmake --build build --config Release
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            build/**/*.exe
+            build/**/*.dll
