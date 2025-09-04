@@ -25,15 +25,17 @@ jobs:
           choco install ninja --no-progress
 
       - name: Install Qt
+        shell: cmd
         run: |
           python -m aqt install-qt windows desktop %QT_VERSION% %QT_ARCH% --outputdir %QT_DIR%
 
       - name: Configure (CMake + Ninja)
-        env:
-          CMAKE_PREFIX_PATH: ${{ env.QT_DIR }}\${{ env.QT_VERSION }}\msvc2019_64
+        shell: cmd
         run: |
-          cmake -S . -B build -G "Ninja" -DCMAKE_PREFIX_PATH="%CMAKE_PREFIX_PATH%"
-          # 若你改成 32 位，CMAKE_PREFIX_PATH 換成 %QT_DIR%\%QT_VERSION%\msvc2019
+          set QTPREFIX=%QT_DIR%\%QT_VERSION%\msvc2019_64
+          if "%QT_ARCH%"=="win32_msvc2019" set QTPREFIX=%QT_DIR%\%QT_VERSION%\msvc2019
+          if "%QT_ARCH%"=="win64_mingw"    set QTPREFIX=%QT_DIR%\%QT_VERSION%\mingw_64
+          cmake -S . -B build -G "Ninja" -DCMAKE_PREFIX_PATH="%QTPREFIX%"
 
       - name: Build (Release)
         run: cmake --build build --config Release
