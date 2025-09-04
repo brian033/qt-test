@@ -1,4 +1,4 @@
-name: Build Windows .exe (Qt6)
+name: Build Windows x64 (.exe) - Qt6 MSVC
 
 on:
   push:
@@ -6,36 +6,32 @@ on:
   workflow_dispatch:
 
 jobs:
-  win-msvc:
+  build-win64-msvc:
     runs-on: windows-latest
-
     env:
       QT_VERSION: 6.9.2
-      QT_ARCH: win64_msvc2019_64 # x64；若要 32 位改成 win32_msvc2019
+      QT_ARCH: win64_msvc2022_64
       QT_DIR: C:\Qt
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install prerequisites (aqt, cmake, ninja)
+      - name: Install prerequisites
         run: |
           pip install aqtinstall
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --no-progress
           choco install ninja --no-progress
 
-      - name: Install Qt
-        shell: cmd
+      - name: Install Qt (MSVC 2022 x64)
+        shell: pwsh
         run: |
-          python -m aqt install-qt windows desktop %QT_VERSION% %QT_ARCH% --outputdir %QT_DIR%
+          python -m aqt install-qt windows desktop $env:QT_VERSION $env:QT_ARCH --outputdir $env:QT_DIR
 
       - name: Configure (CMake + Ninja)
-        shell: cmd
+        shell: pwsh
         run: |
-          set QTPREFIX=%QT_DIR%\%QT_VERSION%\msvc2019_64
-          if "%QT_ARCH%"=="win32_msvc2019" set QTPREFIX=%QT_DIR%\%QT_VERSION%\msvc2019
-          if "%QT_ARCH%"=="win64_mingw"    set QTPREFIX=%QT_DIR%\%QT_VERSION%\mingw_64
-          cmake -S . -B build -G "Ninja" -DCMAKE_PREFIX_PATH="%QTPREFIX%"
+          $env:CMAKE_PREFIX_PATH = "C:\Qt\$env:QT_VERSION\msvc2022_64"
+          cmake -S . -B build -G "Ninja" -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH"
 
       - name: Build (Release)
         run: cmake --build build --config Release
@@ -43,13 +39,12 @@ jobs:
       - name: Deploy Qt runtime (windeployqt)
         shell: pwsh
         run: |
-          $qtbin = "${{ env.QT_DIR }}\${{ env.QT_VERSION }}\msvc2019_64\bin"
-          $exe   = "build\helloqt.exe"   # 如果你的產物出在 build\Release\helloqt.exe 就改那個路徑
+          $qtbin = "C:\Qt\$env:QT_VERSION\msvc2022_64\bin"
+          $exe   = "build\helloqt.exe"     # 若你的 exe 在 build\Release\，改那個路徑
           & "$qtbin\windeployqt.exe" --release --compiler-runtime "$exe"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: HelloQt-Windows-x64
-          path: |
-            build/**/*
+          path: build/**/*

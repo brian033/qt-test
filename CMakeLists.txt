@@ -12,7 +12,7 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 # Qt6 的建議寫法：qt_add_executable + qt_finalize_executable
-qt_add_executable(helloqt
+qt_add_executable(helloqt WIN32
   MANUAL_FINALIZATION
   main.cpp
 )
